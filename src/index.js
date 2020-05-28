@@ -28,6 +28,11 @@ io.on("connection", (socket) => {
         io.emit("message", msg);
     });
 
+    // Send location to all users
+    socket.on("sendLocation", (coords) => {
+        io.emit("message", `https://google.com/maps?q=${coords.latitude},${coords.longitude}`);
+    })
+
     // Notify that a user left the chatroom
     socket.on("disconnect", () => {
         io.emit("message", "A user has left.");
