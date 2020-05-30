@@ -5,6 +5,8 @@ const http = require("http");
 const express = require("express");
 const socketio = require("socket.io");
 const Filter = require("bad-words");
+// Custom Scripts
+const { generateMessage, generateLocation } = require("./utils/messages");
 
 const app = express();
 const server = http.createServer(app);
@@ -20,9 +22,9 @@ io.on("connection", (socket) => {
     console.log("New Web Socket connection.");
 
     // Welcoming message to user
-    socket.emit("message", "Welcome!");
+    socket.emit("message", generateMessage("Welcome!"));
     // Informing other users of new user joining
-    socket.broadcast.emit("message", "A new user has joined the chatroom!");
+    socket.broadcast.emit("message", generateMessage("A new user has joined the chatroom!"));
 
     // Send message to all users
     socket.on("sendMessage", (msg, callback) => {
@@ -32,19 +34,19 @@ io.on("connection", (socket) => {
             return callback("The message was Censored. Profanity is not allowed.");
         }
 
-        io.emit("message", msg);
+        io.emit("message", generateMessage(msg));
         callback();
     });
 
     // Send location to all users
     socket.on("sendLocation", (coords, callback) => {
-        io.emit("locationMessage", `https://google.com/maps?q=${coords.latitude},${coords.longitude}`);
+        io.emit("locationMessage", generateLocation(coords));
         callback();
     })
 
     // Notify that a user left the chatroom
     socket.on("disconnect", () => {
-        io.emit("message", "A user has left.");
+        io.emit("message", generateMessage("A user has left."));
     });
 });
 
