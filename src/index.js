@@ -21,10 +21,14 @@ app.use(express.static(publicDir));
 io.on("connection", (socket) => {
     console.log("New Web Socket connection.");
 
-    // Welcoming message to user
-    socket.emit("message", generateMessage("Welcome!"));
-    // Informing other users of new user joining
-    socket.broadcast.emit("message", generateMessage("A new user has joined the chatroom!"));
+    socket.on("join", ({ username, room}) => {
+        socket.join(room);
+
+        // Welcoming message to user
+        socket.emit("message", generateMessage("Welcome!"));
+        // Informing other users of new user joining
+        socket.broadcast.to(room).emit("message", generateMessage(`${username} has join the room!`));
+    })
 
     // Send message to all users
     socket.on("sendMessage", (msg, callback) => {
