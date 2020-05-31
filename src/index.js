@@ -7,6 +7,7 @@ const socketio = require("socket.io");
 const Filter = require("bad-words");
 // Custom Scripts
 const { generateMessage, generateLocation } = require("./utils/messages");
+const { addUser, removeUser, getUser, getUsersInRoom } = require("./utils/users")
 
 const app = express();
 const server = http.createServer(app);
@@ -21,36 +22,54 @@ app.use(express.static(publicDir));
 io.on("connection", (socket) => {
     console.log("New Web Socket connection.");
 
-    socket.on("join", ({ username, room}) => {
-        socket.join(room);
+    socket.on("join", ({ username, room }, callback) => {
+        const { error, user } = addUser({ id: socket.id, username, room });
+
+        if (error) {
+            return callback(error);
+        }
+
+        socket.join(user.room);
 
         // Welcoming message to user
-        socket.emit("message", generateMessage("Welcome!"));
+        socket.emit("message", generateMessage("Admin", "Welcome!"));
         // Informing other users of new user joining
-        socket.broadcast.to(room).emit("message", generateMessage(`${username} has join the room!`));
+        socket.broadcast.to(user.room).emit("message", generateMessage("Admin", `${user.username} has join the room!`));
+
+        callback();
     })
 
     // Send message to all users
     socket.on("sendMessage", (msg, callback) => {
-        const filter = new Filter();
+        const user = getUser(socket.id);
+        if (user) {
+            const filter = new Filter();
 
-        if (filter.isProfane(msg)) {
-            return callback("The message was Censored. Profanity is not allowed.");
-        }
-
-        io.emit("message", generateMessage(msg));
-        callback();
+            if (filter.isProfane(msg)) {
+                return callback("The message was Censored. Profanity is not allowed.");
+            }
+    
+            io.to(user.room).emit("message", generateMessage(user.username, msg));
+            callback();
+        }        
     });
 
     // Send location to all users
     socket.on("sendLocation", (coords, callback) => {
-        io.emit("locationMessage", generateLocation(coords));
-        callback();
+        const user = getUser(socket.id);
+        if (user) {
+            io.to(user.room).emit("locationMessage", generateLocation(user.username, coords));
+            callback();
+        }
     })
 
     // Notify that a user left the chatroom
     socket.on("disconnect", () => {
-        io.emit("message", generateMessage("A user has left."));
+        const user = removeUser(socket.id);
+
+        if (user) {
+            io.to(user.room).emit("message", generateMessage("Admin", `${user.username} has left the room.`));
+        }
     });
 });
 
